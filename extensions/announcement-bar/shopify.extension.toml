@@ -1,0 +1,7 @@
+name = "Announcement Bar"
+uid = "bfe23def-0fcd-9f29-ce0d-ed157282f9076ab939c6"
+type = "theme"
+
+[[app_embeds]]
+name = "Announcement Bar"
+target = "body"

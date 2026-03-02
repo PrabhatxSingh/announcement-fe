@@ -1,0 +1,238 @@
+{% assign raw_settings = shop.metafields.my_app.settings.value %}
+{% assign data = raw_settings | default: '{}' | parse_json %}
+
+{% if data.announcements != blank %}
+  {% assign announcements = data.announcements %}
+{% else %}
+  {% assign announcements = "Welcome to our store" | split: "|" %}
+{% endif %}
+
+{% assign bg1 = data.bgColor1 | default: "#000000" %}
+{% assign bg2 = data.bgColor2 | default: "#222222" %}
+{% assign useGradient = data.useGradient | default: true %}
+{% assign gradientAngle = data.gradientAngle | default: 270 %}
+{% assign textColor = data.textColor | default: "#ffffff" %}
+{% assign ctaText = data.ctaText | default: "Shop Now" %}
+{% assign ctaUrl = data.ctaUrl | default: "#" %}
+{% assign ctaBg = data.ctaBg | default: "#ffffff" %}
+{% assign ctaTextColor = data.ctaTextColor | default: "#000000" %}
+{% assign ctaRadius = data.ctaRadius | default: 20 %}
+{% assign fadeSize = data.fadeSize | default: 0 %}
+
+{% capture backgroundStyle %}
+  {% if useGradient %}
+    linear-gradient({{ gradientAngle }}deg, {{ bg1 }}, {{ bg2 }})
+  {% else %}
+    {{ bg1 }}
+  {% endif %}
+{% endcapture %}
+
+<div id="my-app-announcement-wrapper">
+
+  <button class="announcement-arrow left">&#10094;</button>
+
+  <div id="my-app-announcement-track">
+    <div class="announcement-slider">
+      {% for item in announcements %}
+        {% if item != blank %}
+          <div class="announcement-slide">
+            <span class="announcement-text">{{ item }}</span>
+
+            {% if ctaText != blank %}
+              <a href="{{ ctaUrl }}" class="announcement-cta">
+                {{ ctaText }}
+              </a>
+            {% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <button class="announcement-arrow right">&#10095;</button>
+
+</div>
+
+<style>
+#my-app-announcement-wrapper {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: {{ backgroundStyle }};
+  color: {{ textColor }};
+  padding: 8px 40px;
+  z-index: 99999;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black {{ fadeSize }}%,
+    black {{ 100 | minus: fadeSize }}%,
+    transparent 100%
+  );
+
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black {{ fadeSize }}%,
+    black {{ 100 | minus: fadeSize }}%,
+    transparent 100%
+  );
+}
+
+#my-app-announcement-track {
+  overflow: hidden;
+  width: 100%;
+}
+
+.announcement-slider {
+  display: flex;
+  transition: transform 0.6s ease;
+}
+
+.announcement-slide {
+  flex: 0 0 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.announcement-cta {
+  padding: 4px 12px;
+  background: {{ ctaBg }};
+  color: {{ ctaTextColor }};
+  border-radius: {{ ctaRadius }}px;
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.announcement-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: {{ ctaTextColor }};
+  color: {{ ctaBg }};
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  z-index: 100000;
+  font-size: 12px;
+  border-radius: 20px;
+}
+
+.announcement-arrow.left { left: 10px; }
+.announcement-arrow.right { right: 10px; }
+
+@media screen and (max-width: 768px) {
+  #my-app-announcement-wrapper {
+    font-size: 12px;
+    padding: 8px 30px;
+  }
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+
+  const wrapper = document.getElementById("my-app-announcement-wrapper");
+  if (!wrapper) return;
+
+  // Prevent double initialization
+  if (wrapper.dataset.initialized === "true") return;
+  wrapper.dataset.initialized = "true";
+
+  // Move to top of body safely
+  if (wrapper.parentNode !== document.body) {
+    document.body.insertBefore(wrapper, document.body.firstChild);
+  }
+
+  const slider = wrapper.querySelector(".announcement-slider");
+  const slides = wrapper.querySelectorAll(".announcement-slide");
+  const nextBtn = wrapper.querySelector(".announcement-arrow.right");
+  const prevBtn = wrapper.querySelector(".announcement-arrow.left");
+
+  if (slides.length <= 1) {
+    nextBtn.style.display = "none";
+    prevBtn.style.display = "none";
+    return;
+  }
+
+  let index = 1;
+  const autoDelay = 3000;
+
+  // Clone first & last slide
+  const firstClone = slides[0].cloneNode(true);
+  const lastClone = slides[slides.length - 1].cloneNode(true);
+
+  slider.appendChild(firstClone);
+  slider.insertBefore(lastClone, slider.firstChild);
+
+  const allSlides = wrapper.querySelectorAll(".announcement-slide");
+
+  slider.style.transition = "none";
+  slider.style.transform = "translateX(-100%)";
+
+  function moveToSlide() {
+    slider.style.transition = "transform 0.6s ease";
+    slider.style.transform = `translateX(-${index * 100}%)`;
+  }
+
+  function nextSlide() {
+    index++;
+    moveToSlide();
+  }
+
+  function prevSlide() {
+    index--;
+    moveToSlide();
+  }
+
+  slider.addEventListener("transitionend", function() {
+    if (index === allSlides.length - 1) {
+      slider.style.transition = "none";
+      index = 1;
+      slider.style.transform = "translateX(-100%)";
+    }
+    if (index === 0) {
+      slider.style.transition = "none";
+      index = allSlides.length - 2;
+      slider.style.transform = `translateX(-${index * 100}%)`;
+    }
+  });
+
+  let autoSlide = setInterval(nextSlide, autoDelay);
+
+  wrapper.addEventListener("mouseenter", () => clearInterval(autoSlide));
+  wrapper.addEventListener("mouseleave", () => {
+    autoSlide = setInterval(nextSlide, autoDelay);
+  });
+
+  nextBtn.addEventListener("click", () => {
+    clearInterval(autoSlide);
+    nextSlide();
+    autoSlide = setInterval(nextSlide, autoDelay);
+  });
+
+  prevBtn.addEventListener("click", () => {
+    clearInterval(autoSlide);
+    prevSlide();
+    autoSlide = setInterval(nextSlide, autoDelay);
+  });
+
+});
+</script>
+
+{% schema %}
+{
+  "name": "Announcement Bar",
+  "target": "body",
+  "settings": []
+}
+{% endschema %}
