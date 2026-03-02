@@ -3,14 +3,14 @@ import db from "../db.server";
 import jwt from "jsonwebtoken";
 
 export const action = async ({ request }) => {
-  const { shop, session, topic } =
+  const { shop, session, topic, admin } =
     await authenticate.webhook(request);
 
   console.log(`Received ${topic} webhook for ${shop}`);
 
   try {
     /**
-     * 1️⃣ Delete Shopify session
+     * 1️⃣ Delete Shopify sessions
      */
     if (session) {
       await db.session.deleteMany({ where: { shop } });
@@ -18,11 +18,49 @@ export const action = async ({ request }) => {
     }
 
     /**
-     * 2️⃣ Call external backend DELETE route
+     * 2️⃣ Delete shop metafield (my_app.settings)
+     */
+    try {
+      // First get metafield ID
+      const metafieldsResponse = await admin.graphql(`
+        {
+          shop {
+            metafield(namespace: "my_app", key: "settings") {
+              id
+            }
+          }
+        }
+      `);
+
+      const metafieldsJson = await metafieldsResponse.json();
+      const metafieldId =
+        metafieldsJson?.data?.shop?.metafield?.id;
+
+      if (metafieldId) {
+        await admin.graphql(`
+          mutation {
+            metafieldDelete(input: { id: "${metafieldId}" }) {
+              deletedId
+              userErrors {
+                field
+                message
+              }
+            }
+          }
+        `);
+
+        console.log("Metafield deleted");
+      }
+    } catch (err) {
+      console.error("Metafield deletion failed:", err);
+    }
+
+    /**
+     * 3️⃣ Call external backend DELETE route
      */
     const token = jwt.sign(
       { shop },
-      process.env.SHOPIFY_API_SECRET, // must match backend secret
+      process.env.SHOPIFY_API_SECRET,
       { expiresIn: "5m" }
     );
 
