@@ -106,7 +106,7 @@ export const action = async ({ request }) => {
       { expiresIn: "5m" }
     );
 
-    await fetch("https://announcement-be.onrender.com/api/announcement", {
+    await fetch(process.env.BE_URI + "/api/announcement", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
